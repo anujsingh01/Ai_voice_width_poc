@@ -1,0 +1,18 @@
+# Azure VM deployment. Lives in /opt/ai-width. HTTPS comes from the shared Caddy in /opt/edge,
+# which reaches this container as "ai-width-chat:3030" over the external Docker network "edge".
+services:
+  chat:
+    image: ghcr.io/${GHCR_OWNER}/ai-voice-width:${IMAGE_TAG:-latest}
+    container_name: ai-width-chat
+    restart: unless-stopped
+    volumes:
+      - data:/app/data
+      - ./app.env:/app/.env      # keys and settings saved by /admin.html
+    networks: [edge]
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  data:

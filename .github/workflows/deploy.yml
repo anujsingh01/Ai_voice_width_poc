@@ -1,0 +1,69 @@
+name: Deploy
+
+# Builds the image, pushes it to GHCR, then updates the Azure VM over SSH.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "**.pdf", "data/raw/**"]
+  workflow_dispatch:
+
+concurrency: deploy-azure
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/ai-voice-width:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/ai-voice-width:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: azure-vm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy compose file to the VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          source: docker-compose.prod.yml
+          target: /opt/ai-width
+      - name: Pull image and restart
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd /opt/ai-width
+            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
+            grep -q '^GHCR_OWNER=' .env || echo "GHCR_OWNER=${{ github.repository_owner }}" >> .env
+            sed -i '/^IMAGE_TAG=/d' .env && echo "IMAGE_TAG=${{ github.sha }}" >> .env
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 20); do
+            curl -fsS "https://${{ secrets.APP_DOMAIN }}/api/health" && exit 0
+            sleep 6
+          done
+          echo "Health check failed"; exit 1
