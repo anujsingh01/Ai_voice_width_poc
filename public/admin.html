@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Assistant Settings</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #faf7f2; color: #1f1b1a; }
+    main { max-width: 760px; margin: 0 auto; padding: 40px 16px 80px; line-height: 1.5; }
+    h1 { color: #c8102e; margin: 0 0 4px; }
+    h2 { font-size: 18px; margin: 0 0 4px; }
+    .sub { color: #5a514c; margin: 0 0 24px; }
+    .card { background: #fff; border: 1px solid #e5ddd5; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+    .hint { color: #6b625d; font-size: 14px; margin: 0 0 12px; }
+    .status { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .pill { display: inline-block; padding: 3px 12px; border-radius: 99px; font-weight: 600; font-size: 14px; }
+    .pill.demo { background: #fff3cd; color: #7a5b00; }
+    .pill.live { background: #e8f5e9; color: #1b5e20; }
+    .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 560px) { .modes { grid-template-columns: 1fr; } }
+    .mode { border: 2px solid #e5ddd5; border-radius: 10px; padding: 12px 14px; cursor: pointer; display: block; }
+    .mode:has(input:checked) { border-color: #c8102e; background: #fdf3f4; }
+    .mode input { margin-right: 6px; }
+    .mode small { display: block; color: #5a514c; margin-top: 2px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    label.f { display: block; font-weight: 600; font-size: 14px; margin: 10px 0 4px; }
+    input[type=password], input[type=number], input[type=text] { font: inherit; font-size: 15px; border: 1px solid #d9cfc6; border-radius: 8px; padding: 8px 12px; flex: 1 1 260px; min-width: 0; }
+    input[type=number] { flex: 0 0 140px; }
+    button { font: inherit; font-size: 15px; border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid #d9cfc6; background: #fff; }
+    button.primary { background: #c8102e; border-color: #c8102e; color: #fff; font-weight: 600; }
+    .result { font-size: 14px; }
+    .ok { color: #1b5e20; } .bad { color: #a50d26; }
+    #msg { display: none; padding: 12px 14px; border-radius: 10px; margin-bottom: 16px; }
+    #msg.ok { display: block; background: #e8f5e9; border: 1px solid #a5d6a7; }
+    #msg.bad { display: block; background: #fdecee; border: 1px solid #f3b6bf; }
+    a { color: #c8102e; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Assistant settings</h1>
+    <p class="sub">Keys, mode and budget. Changes apply right away; no restart needed. <a href="/report.html">Pilot report →</a></p>
+    <div id="msg"></div>
+
+    <div class="card status">
+      <span>Now answering in</span> <span id="modePill" class="pill"></span>
+      <span id="spent" class="hint" style="margin:0"></span>
+    </div>
+
+    <div class="card">
+      <h2>Mode</h2>
+      <p class="hint">Use Demo to show the assistant for free. The public website needs Live.</p>
+      <div class="modes">
+        <label class="mode"><input type="radio" name="mode" value="demo"><b>Demo</b><small>Answers through the Claude app on this computer, with your Claude account. No API cost.</small></label>
+        <label class="mode"><input type="radio" name="mode" value="live"><b>Live</b><small>Answers through the Anthropic API key. Needed for the website; billed per reply.</small></label>
+      </div>
+      <div class="row" style="margin-top:10px"><button data-test="demo">Check Claude app</button><span class="result" id="r-demo"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Keys</h2>
+      <p class="hint">Saved on this server only. Leave a box empty to keep the current key.</p>
+      <label class="f" for="anthropicKey">Anthropic API key</label>
+      <div class="row"><input id="anthropicKey" type="password" autocomplete="off" placeholder="sk-ant-…"><button data-test="anthropic">Test</button></div>
+      <div class="result" id="r-anthropic"></div>
+      <label class="f" for="googleKey">Google Cloud voice key (for iPhone and Safari)</label>
+      <div class="row"><input id="googleKey" type="password" autocomplete="off" placeholder="AIza…"><button data-test="google">Test</button></div>
+      <div class="result" id="r-google"></div>
+    </div>
+
+    <div class="card">
+      <h2>ElevenLabs voice</h2>
+      <p class="hint">When a key is saved, every browser speaks with this voice instead of the browser's own. Credits come from your ElevenLabs plan. Create the key at elevenlabs.io → Developers → API keys, with "Text to Speech" and "Voices: read" allowed ("User: read" also shows the credits left).</p>
+      <label class="f" for="elevenKey">ElevenLabs API key</label>
+      <div class="row"><input id="elevenKey" type="password" autocomplete="off" placeholder="sk_…"><button data-test="elevenlabs">Test</button><button id="elevenOff" type="button">Turn off</button></div>
+      <div class="result" id="r-elevenlabs"></div>
+      <label class="f" for="elevenVoice">Voice</label>
+      <div class="row"><select id="elevenVoice" style="font:inherit;font-size:15px;border:1px solid #d9cfc6;border-radius:8px;padding:8px 12px;flex:1 1 260px;min-width:0"></select><button id="sample" type="button">▶ Play sample</button></div>
+      <p class="hint" style="margin:4px 0 0">Press Test to load your voices. Indian-accent voices are listed first. More are in the ElevenLabs voice library: add one there and press Test again.</p>
+      <label class="f" for="elevenModel">Speech model</label>
+      <div class="row"><select id="elevenModel" style="font:inherit;font-size:15px;border:1px solid #d9cfc6;border-radius:8px;padding:8px 12px;flex:1 1 260px;min-width:0">
+        <option value="eleven_flash_v2_5">Flash v2.5: fastest, half the credits (recommended for live chat)</option>
+        <option value="eleven_multilingual_v2">Multilingual v2: most natural, slower, full credits</option>
+      </select></div>
+      <div class="result" id="r-sample"></div>
+    </div>
+
+    <div class="card">
+      <h2>WhatsApp number check <span class="pill" id="verifyPill"></span></h2>
+      <p class="hint">After the free questions, the chat asks for a WhatsApp number and sends a 6-digit code before it answers more. This stops one person from running up the bill. Meta charges about ₹0.115 + GST for each code it delivers in India. Set it up in Meta Business → WhatsApp Manager: approve an <b>Authentication</b> template with a "Copy code" button, then create a System User access token with the whatsapp_business_messaging permission.</p>
+      <label class="f" for="whatsappToken">Access token</label>
+      <div class="row"><input id="whatsappToken" type="password" autocomplete="off" placeholder="EAA…"><button data-test="whatsapp">Test</button><button id="whatsappOff" type="button">Turn off</button></div>
+      <div class="result" id="r-whatsapp"></div>
+      <label class="f" for="whatsappPhoneId">Phone number ID (WhatsApp Manager → API setup)</label>
+      <div class="row"><input id="whatsappPhoneId" inputmode="numeric" autocomplete="off"></div>
+      <label class="f" for="whatsappTemplate">Template name and language</label>
+      <div class="row"><input id="whatsappTemplate" autocomplete="off"><input id="whatsappLang" autocomplete="off" style="flex:0 1 110px"></div>
+      <label class="f" for="freeQuestions">Free questions a day before the check</label>
+      <div class="row"><input id="freeQuestions" type="number" min="1" max="999"></div>
+      <label class="f" for="verifiedDaily">Questions a day for a confirmed number</label>
+      <div class="row"><input id="verifiedDaily" type="number" min="1" max="9999"></div>
+    </div>
+
+    <div class="card">
+      <h2>Monthly budget</h2>
+      <p class="hint">Sonnet gives the best answers. When its budget is used up, Haiku answers every question until the 1st of the month. At the hard limit the chat pauses and shows the customer-care number. Set the same hard limit in the Anthropic console.</p>
+      <label class="f" for="sonnetBudget">Sonnet budget per month (US $)</label>
+      <div class="row"><input id="sonnetBudget" type="number" min="0" step="10"><span class="hint" style="margin:0" id="sonnetSpent"></span></div>
+      <label class="f" for="monthlyBudget">Hard limit per month, everything included (US $)</label>
+      <div class="row"><input id="monthlyBudget" type="number" min="0" step="10"></div>
+    </div>
+
+    <div class="card">
+      <h2>Password</h2>
+      <p class="hint" id="pwHint"></p>
+      <div class="row"><input id="password" type="password" autocomplete="new-password" placeholder="New password (8+ characters)"></div>
+    </div>
+
+    <div class="row"><button class="primary" id="save">Save settings</button></div>
+  </main>
+  <script>
+    var $ = function (id) { return document.getElementById(id); };
+    var token = ""; try { token = sessionStorage.getItem("report-token") || ""; } catch (e) {}
+    function call(method, url, body) {
+      var h = { "Content-Type": "application/json" };
+      if (token) h.Authorization = "Bearer " + token;
+      return fetch(url, { method: method, headers: h, body: body ? JSON.stringify(body) : undefined })
+        .then(function (r) { return r.json().then(function (j) { if (r.status === 401) { askPassword(j.error); throw new Error(j.error); } if (!r.ok) throw new Error(j.error || "Failed"); return j; }); });
+    }
+    function askPassword(why) {
+      var p = prompt((why || "Password needed") + "\n\nPassword:");
+      if (p) { token = p; try { sessionStorage.setItem("report-token", p); } catch (e) {} load(); }
+    }
+    function say(text, ok) { var m = $("msg"); m.textContent = text; m.className = ok ? "ok" : "bad"; }
+    function show(s) {
+      $("modePill").textContent = s.mode === "live" ? "Live (API)" : "Demo (Claude app)";
+      $("modePill").className = "pill " + s.mode;
+      $("spent").textContent = "Spent this month: $" + s.spentThisMonth.toFixed(2) + " of $" + s.monthlyBudget + " · voice: " + s.voice;
+      document.querySelector('input[name=mode][value="' + (s.modeSetting === "demo" ? "demo" : "live") + '"]').checked = true;
+      $("anthropicKey").value = ""; $("googleKey").value = ""; $("elevenKey").value = ""; $("password").value = "";
+      $("elevenKey").placeholder = s.elevenKey ? "Saved: " + s.elevenKey : "sk_…";
+      $("elevenOff").style.display = s.elevenKey ? "" : "none";
+      setVoices(null, s.elevenVoice); $("elevenModel").value = s.elevenModel;
+      $("anthropicKey").placeholder = s.anthropicKey ? "Saved: " + s.anthropicKey : "sk-ant-…";
+      $("googleKey").placeholder = s.googleKey ? "Saved: " + s.googleKey : "AIza…";
+      $("whatsappToken").value = ""; $("whatsappToken").placeholder = s.whatsappToken ? "Saved: " + s.whatsappToken : "EAA…";
+      $("whatsappOff").style.display = s.whatsappToken ? "" : "none";
+      $("whatsappPhoneId").value = s.whatsappPhoneId; $("whatsappTemplate").value = s.whatsappTemplate; $("whatsappLang").value = s.whatsappLang;
+      $("freeQuestions").value = s.freeQuestions; $("verifiedDaily").value = s.verifiedDaily;
+      $("verifyPill").textContent = s.verifyOn ? "On" : "Off"; $("verifyPill").className = "pill " + (s.verifyOn ? "live" : "demo");
+      $("sonnetBudget").value = s.sonnetBudget; $("monthlyBudget").value = s.monthlyBudget;
+      $("sonnetSpent").textContent = "used so far: $" + s.sonnetSpentThisMonth.toFixed(2);
+      $("pwHint").textContent = s.hasPassword
+        ? "A password is set. It opens this page and the pilot report from other computers. Type a new one to change it."
+        : "No password yet, so this page and the report only open on this computer. Set one before going live.";
+      if (s.modeSetting !== "demo" && s.mode === "demo") say("Live is chosen but there is no Anthropic key yet, so it is answering in Demo.", false);
+    }
+    // The voice list comes from the key test; before that only the saved voice is shown.
+    function setVoices(list, current) {
+      var sel = $("elevenVoice");
+      if (!list) { if (sel.options.length > 1) { sel.value = current; return; } list = []; }
+      sel.innerHTML = "";
+      if (!list.some(function (v) { return v.id === current; })) list.unshift({ id: current, name: "Saved voice (" + current + ")" });
+      list.forEach(function (v) {
+        var o = document.createElement("option"); o.value = v.id;
+        o.textContent = v.name + (v.accent || v.gender ? " · " + [v.accent, v.gender].filter(Boolean).join(", ") : "");
+        sel.appendChild(o);
+      });
+      sel.value = current;
+    }
+    // Saves the voice and model first, so the sample is what customers will hear.
+    $("sample").onclick = function () {
+      var out = $("r-sample"); out.textContent = "Loading…"; out.className = "result";
+      var key = $("elevenKey").value.trim();
+      call("POST", "/api/settings", { elevenKey: key, elevenVoice: $("elevenVoice").value, elevenModel: $("elevenModel").value })
+        .then(function (s) {
+          if (!s.elevenKey) throw new Error("Save an ElevenLabs key first");
+          if (key) show(s);
+          return fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: "Namaste! Main Prestige assistant hoon. Aapko kaunsa cooker chahiye? Chhote parivaar ke liye 3 litre wala sabse accha rahega." }) });
+        })
+        .then(function (r) { if (!r.ok) throw new Error("ElevenLabs didn't return audio (" + r.status + "). Test the key."); return r.blob(); })
+        .then(function (b) { var a = new Audio(URL.createObjectURL(b)); a.play(); out.textContent = "▶ Playing. Voice and model saved."; out.className = "result ok"; })
+        .catch(function (e) { out.textContent = e.message; out.className = "result bad"; });
+    };
+    $("elevenOff").onclick = function () {
+      if (!confirm("Turn off ElevenLabs? Browsers go back to their own voice (or Google, if that key is saved).")) return;
+      call("POST", "/api/settings", { elevenKey: "clear" }).then(function (s) { show(s); say("ElevenLabs is off.", true); }).catch(function (e) { say(e.message, false); });
+    };
+    $("whatsappOff").onclick = function () {
+      if (!confirm("Turn off the WhatsApp check? Everyone can then chat without a limit on questions (the monthly budget still applies).")) return;
+      call("POST", "/api/settings", { whatsappToken: "clear" }).then(function (s) { show(s); say("WhatsApp check is off.", true); }).catch(function (e) { say(e.message, false); });
+    };
+    function load() { call("GET", "/api/settings").then(show).catch(function () {}); }
+    $("save").onclick = function () {
+      var body = {
+        mode: document.querySelector("input[name=mode]:checked").value,
+        anthropicKey: $("anthropicKey").value.trim(), googleKey: $("googleKey").value.trim(),
+        elevenKey: $("elevenKey").value.trim(), elevenVoice: $("elevenVoice").value, elevenModel: $("elevenModel").value,
+        sonnetBudget: $("sonnetBudget").value, monthlyBudget: $("monthlyBudget").value, password: $("password").value,
+        whatsappToken: $("whatsappToken").value.trim(), whatsappPhoneId: $("whatsappPhoneId").value.trim(),
+        whatsappTemplate: $("whatsappTemplate").value.trim(), whatsappLang: $("whatsappLang").value.trim(),
+        freeQuestions: $("freeQuestions").value, verifiedDaily: $("verifiedDaily").value,
+      };
+      if (Number(body.monthlyBudget) < Number(body.sonnetBudget)) return say("The hard limit should be at least the Sonnet budget.", false);
+      var newPw = body.password;
+      call("POST", "/api/settings", body).then(function (s) {
+        if (newPw) { token = newPw; try { sessionStorage.setItem("report-token", newPw); } catch (e) {} }
+        show(s); say("Saved. The assistant is using the new settings now.", true);
+      }).catch(function (e) { say(e.message, false); });
+    };
+    document.querySelectorAll("[data-test]").forEach(function (b) {
+      b.onclick = function () {
+        var which = b.getAttribute("data-test"), out = $("r-" + which);
+        out.textContent = "Checking…"; out.className = "result";
+        call("POST", "/api/settings/test?which=" + which).then(function (r) {
+          out.textContent = (r.ok ? "✓ " : "✗ ") + r.detail; out.className = "result " + (r.ok ? "ok" : "bad");
+          if (r.voices) setVoices(r.voices, $("elevenVoice").value);
+        }).catch(function (e) { out.textContent = e.message; out.className = "result bad"; });
+      };
+    });
+    load();
+  </script>
+</body>
+</html>

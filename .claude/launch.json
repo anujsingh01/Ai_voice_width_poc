@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "chat-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 3030
+    },
+    {
+      "name": "chat-preview",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "PORT=3031 npm start"],
+      "port": 3031
+    }
+  ]
+}

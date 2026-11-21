@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pilot Report</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #faf7f2; color: #1f1b1a; }
+    main { max-width: 1040px; margin: 0 auto; padding: 40px 16px 80px; line-height: 1.5; }
+    h1 { color: #c8102e; margin: 0 0 4px; }
+    .sub { color: #5a514c; margin: 0 0 24px; }
+    .bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 24px; }
+    input, select, button { font: inherit; font-size: 15px; border: 1px solid #d9cfc6; background: #fff; border-radius: 8px; padding: 7px 12px; }
+    button { background: #c8102e; border-color: #c8102e; color: #fff; cursor: pointer; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 28px; }
+    .tile { background: #fff; border: 1px solid #e5ddd5; border-radius: 12px; padding: 16px; }
+    .tile .k { font-size: 13px; color: #5a514c; }
+    .tile .v { font-size: 30px; font-weight: 700; margin: 2px 0; }
+    .tile .ref { font-size: 13px; color: #6b625d; }
+    .tile.key { border-color: #c8102e; box-shadow: 0 0 0 2px #c8102e22; }
+    .wrap { overflow-x: auto; background: #fff; border: 1px solid #e5ddd5; border-radius: 12px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid #efe8e1; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    th { background: #f1eae2; font-weight: 600; }
+    .msg { padding: 14px 16px; border-radius: 10px; background: #fff8e1; border: 1px solid #ffe082; margin-bottom: 20px; display: none; }
+    .warn { color: #a50d26; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Assistant pilot report</h1>
+    <p class="sub">Real numbers from the live chat, next to the figures the cost plan assumed. <a href="/admin.html" style="color:#c8102e">Settings →</a></p>
+    <div class="bar">
+      <input id="token" type="password" placeholder="Report password" autocomplete="current-password" />
+      <select id="days"><option value="7">Last 7 days</option><option value="14" selected>Last 14 days</option><option value="30">Last 30 days</option></select>
+      <button id="load">Show report</button>
+    </div>
+    <div id="msg" class="msg"></div>
+    <div id="tiles" class="tiles"></div>
+    <div class="wrap"><table id="table"></table></div>
+  </main>
+  <script>
+    var $ = function (id) { return document.getElementById(id); };
+    try { $("token").value = sessionStorage.getItem("report-token") || ""; } catch (e) {}
+    var pct = function (x) { return x == null ? "–" : (x * 100).toFixed(1) + "%"; };
+    var usd = function (x, d) { return x == null ? "–" : "$" + Number(x).toLocaleString("en-US", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); };
+    var num = function (x) { return x == null ? "–" : Number(x).toLocaleString("en-US"); };
+
+    function tile(k, v, ref, key) {
+      var d = document.createElement("div");
+      d.className = "tile" + (key ? " key" : "");
+      d.innerHTML = '<div class="k"></div><div class="v"></div><div class="ref"></div>';
+      d.querySelector(".k").textContent = k;
+      d.querySelector(".v").textContent = v;
+      d.querySelector(".ref").textContent = ref || "";
+      $("tiles").appendChild(d);
+    }
+
+    function show(r) {
+      var t = r.totals;
+      $("tiles").innerHTML = "";
+      tile("Visitors who saw the chat button", num(t.visitors), "counted by the widget, once a day each");
+      tile("Opened the chat", pct(t.openShare), num(t.opened) + (t.opened === 1 ? " visitor" : " visitors"));
+      tile("Chatted", pct(t.chatShare), "plan assumed 2% (published range 1–3%)", true);
+      tile("Replies per chat", t.messagesPerChat == null ? "–" : t.messagesPerChat, "plan assumed 5");
+      tile("Cost per chat", usd(t.costPerChat, 3), "plan assumed $0.043 (all on Sonnet)", true);
+      tile("Replies by Haiku (cheap model)", pct(t.haikuShare), num(t.onHaiku) + " of " + num(t.messages));
+      tile("WhatsApp check", num(t.verified) + " confirmed", num(t.askedToVerify) + " shoppers reached the free limit · " + num(t.codesSent) + " codes sent (about ₹" + (t.codesSent * 0.115 * 1.18).toFixed(0) + " at ₹0.115 + GST each)");
+      tile("Ready answers (instant, free)", pct(t.readyShare), num(t.ready) + " of " + num(t.messages) + " replies came from a stored answer whose store data hadn't changed");
+      tile("Forecast per month", usd(t.forecastMonthly), "our chat share × our cost per chat × " + num(r.monthlyVisits) + " visits (Semrush)", true);
+      tile("Spent this month", usd(t.monthToDateSpend, 2), "Sonnet " + usd(t.sonnetMonthToDateSpend, 2) + " of its " + usd(r.sonnetBudget) + " budget · hard limit " + usd(r.budget));
+      var rows = r.rows.map(function (x) {
+        return "<tr><td>" + x.day + "</td><td>" + num(x.visitors) + "</td><td>" + num(x.opened) + "</td><td>" + num(x.chatted) +
+          "</td><td>" + (x.visitors ? pct(x.chatted / x.visitors) : "–") + "</td><td>" + num(x.messages) + "</td><td>" + num(x.onHaiku) +
+          "</td><td>" + num(x.ready) + "</td><td>" + usd(x.cost, 2) + "</td><td>" + (x.medianFirstWordsSec ? x.medianFirstWordsSec.toFixed(1) + " s" : "–") + "</td></tr>";
+      }).join("");
+      $("table").innerHTML = "<tr><th>Day</th><th>Visitors</th><th>Opened</th><th>Chatted</th><th>Chat share</th><th>Replies</th><th>On Haiku</th><th>Ready</th><th>Cost</th><th>First words</th></tr>" +
+        (rows || '<tr><td colspan="10">No chats yet in this period.</td></tr>');
+      var m = $("msg");
+      if (t.monthToDateSpend >= r.budget) { m.innerHTML = '<span class="warn">The hard limit is reached.</span> The chat is paused until the 1st and shows the customer-care number.'; m.style.display = "block"; }
+      else if (t.sonnetMonthToDateSpend >= r.sonnetBudget) { m.innerHTML = '<span class="warn">Sonnet’s budget for this month is used up.</span> Haiku is answering every question until the 1st.'; m.style.display = "block"; }
+      else m.style.display = "none";
+    }
+
+    function load() {
+      var token = $("token").value.trim();
+      try { sessionStorage.setItem("report-token", token); } catch (e) {}
+      fetch("/api/report?days=" + $("days").value, { headers: token ? { Authorization: "Bearer " + token } : {} })
+        .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Could not load the report"); return j; }); })
+        .then(show)
+        .catch(function (e) { var m = $("msg"); m.textContent = e.message; m.style.display = "block"; });
+    }
+    $("load").onclick = load;
+    $("days").onchange = load;
+    load();
+  </script>
+</body>
+</html>

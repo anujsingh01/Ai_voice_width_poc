@@ -1,0 +1,21 @@
+{
+  "name": "prestige-voice-chat-widget",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Voice + text chat widget that answers from scraped shop.ttkprestige.com product pages",
+  "scripts": {
+    "scrape": "node scraper/scrape.js",
+    "clean": "node scraper/clean.js",
+    "start": "node --env-file-if-exists=.env server/server.js",
+    "quality": "node test/quality.mjs",
+    "warm": "node --env-file-if-exists=.env server/warm.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.5.0",
+    "cheerio": "^1.0.0"
+  }
+}

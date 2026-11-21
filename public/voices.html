@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prestige Voice Test</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fafafa; color: #222; }
+    main { max-width: 760px; margin: 0 auto; padding: 40px 16px 120px; line-height: 1.5; }
+    h1 { color: #c8102e; margin-bottom: 4px; }
+    .sub { color: #555; margin-top: 0; }
+    .v { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 12px 14px; margin: 8px 0; }
+    .v.chosen { border-color: #c8102e; box-shadow: 0 0 0 2px #c8102e33; }
+    .name { flex: 1 1 240px; min-width: 0; }
+    .name b { display: block; overflow-wrap: anywhere; }
+    .name span { font-size: 13px; color: #666; }
+    .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 99px; background: #e8f5e9; color: #1b5e20; margin-left: 6px; vertical-align: 1px; }
+    button { font: inherit; font-size: 14px; border: 1px solid #ccc; background: #fff; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+    button:hover { background: #f3f3f3; }
+    button.use { background: #c8102e; border-color: #c8102e; color: #fff; }
+    button.use:hover { background: #a50d26; }
+    .note { background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px; padding: 12px 14px; margin: 16px 0; }
+    #picked { position: fixed; left: 0; right: 0; bottom: 0; background: #222; color: #fff; padding: 14px 16px; text-align: center; display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Pick the assistant's voice</h1>
+    <p class="sub">These are all the voices your browser has. Press <b>English</b> or <b>Hinglish</b> to hear each one say a real reply. When you like one, press <b>Use this</b>.</p>
+    <div id="current" class="note" style="display:none"></div>
+    <div id="list">Loading voices…</div>
+    <div class="note">The ones marked <b>Natural</b> come first; they usually sound most human. After you press <b>Use this</b>, the chat button in the corner talks in that voice so you can try it in a real conversation.</div>
+  </main>
+  <div id="picked"></div>
+  <script>
+    var SAMPLES = {
+      en: "Hi! For a family of four, I'd go with the 5 litre cooker. It's 2,395 rupees right now, and it works on both gas and induction. Do you cook mostly dal and rice, or biryani too?",
+      hi: "Haan bilkul! Chaar logon ke liye 5 litre wala cooker sahi rahega. Abhi 2,395 rupees ka hai, aur gas aur induction dono pe chalta hai. Aap zyada dal-chawal banate ho ya biryani bhi?",
+    };
+    var ROBOTIC = /^(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley)\b/i;
+    var KEY = "prestige-chat-voice";
+    var chosen = "";
+    try { chosen = localStorage.getItem(KEY) || ""; } catch (e) {}
+
+    function quality(v) {
+      if (/natural|neural/i.test(v.name)) return 4;
+      if (/premium|enhanced/i.test(v.name)) return 3;
+      if (/google/i.test(v.name) && !v.localService) return 2;
+      return 1;
+    }
+
+    function say(v, text) {
+      speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.voice = v;
+      u.lang = v.lang;
+      speechSynthesis.speak(u);
+    }
+
+    function showCurrent() {
+      var el = document.getElementById("current");
+      if (!chosen) { el.style.display = "none"; return; }
+      el.innerHTML = "Your pick: <b></b>. Tell Claude this name, or pick another below.";
+      el.querySelector("b").textContent = chosen;
+      el.style.display = "block";
+    }
+
+    function render() {
+      showCurrent();
+      var voices = speechSynthesis.getVoices().filter(function (v) {
+        return /^(en|hi)/i.test(v.lang) && !ROBOTIC.test(v.name);
+      });
+      if (!voices.length) return;
+      voices.sort(function (a, b) {
+        return quality(b) - quality(a) || (b.lang === "en-IN") - (a.lang === "en-IN") || a.name.localeCompare(b.name);
+      });
+      var list = document.getElementById("list");
+      list.innerHTML = "";
+      voices.forEach(function (v) {
+        var row = document.createElement("div");
+        row.className = "v" + (v.name === chosen ? " chosen" : "");
+        var q = quality(v);
+        row.innerHTML =
+          '<div class="name"><b></b><span></span></div>' +
+          '<button class="en">English</button><button class="hi">Hinglish</button><button class="use">Use this</button>';
+        row.querySelector("b").textContent = v.name;
+        if (q >= 2) {
+          var tag = document.createElement("span");
+          tag.className = "tag";
+          tag.textContent = q === 4 ? "Natural" : q === 3 ? "Enhanced" : "Online";
+          row.querySelector("b").appendChild(tag);
+        }
+        row.querySelector(".name span").textContent = v.lang + (v.localService ? "" : " · needs internet");
+        row.querySelector(".en").onclick = function () { say(v, SAMPLES.en); };
+        row.querySelector(".hi").onclick = function () { say(v, SAMPLES.hi); };
+        row.querySelector(".use").onclick = function () {
+          chosen = v.name;
+          try { localStorage.setItem(KEY, chosen); } catch (e) {}
+          var bar = document.getElementById("picked");
+          bar.textContent = "Picked: " + chosen + ". Try it with the chat button, then tell Claude \"use " + chosen + "\".";
+          bar.style.display = "block";
+          render();
+          say(v, "Great, I'll use this voice from now on.");
+        };
+        list.appendChild(row);
+      });
+    }
+
+    if (!("speechSynthesis" in window)) {
+      document.getElementById("list").textContent = "This browser can't speak. Please open this page in Chrome or Edge.";
+    } else {
+      render();
+      speechSynthesis.onvoiceschanged = render;
+      // Chrome sometimes reports no voices at first and never fires the event.
+      var tries = 0, poll = setInterval(function () {
+        if (speechSynthesis.getVoices().length || ++tries > 20) { clearInterval(poll); render(); }
+      }, 250);
+    }
+  </script>
+  <script src="/widget.js" defer></script>
+</body>
+</html>

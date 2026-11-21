@@ -1,0 +1,15 @@
+# systemd service: keeps the chat server running and restarts it if it stops.
+# Copy to /etc/systemd/system/, then: sudo systemctl enable --now prestige-chat
+[Unit]
+Description=Prestige chat assistant
+After=network-online.target
+
+[Service]
+User=prestige
+WorkingDirectory=/opt/prestige-chat
+ExecStart=/usr/bin/node --env-file=.env server/server.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
